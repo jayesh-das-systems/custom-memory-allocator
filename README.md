@@ -61,3 +61,42 @@ Enables ASan memory poisoning hooks to catch use-after-free or buffer overflows:
 ```bash
 g++ -std=c++20 -O1 -g -fsanitize=address benchmark.cpp -o benchmark_asan
 ./benchmark_asan
+
+## Usage
+
+`Arena.hpp` is header-only — drop it into your include path and compile.
+
+```cpp
+#include "Arena.hpp"
+
+struct Particle {
+    float x, y, z;
+};
+
+int main() {
+    // 1. Initialize manager with 1 pool slot
+    ScopedMultiSlabManager mgr(1);
+
+    // 2. Configure a 4096-byte pool for Particle structs
+    manager_add_pool_strict(
+        mgr.get(), 
+        nullptr, 
+        /*total_bytes=*/4096, 
+        /*block_size=*/align_to_arch(sizeof(Particle))
+    );
+
+    SlabPool* pool = &mgr.get()->pools[0];
+
+    // 3. Safe API: Typed handle with bounds & UAF validation
+    SafeBlockHandle<Particle> p = slab_alloc_safe<Particle>(pool);
+    p->x = 1.0f;
+    p->y = 2.0f;
+    p->z = 3.0f;
+    slab_dealloc_safe(pool, p);
+
+    // 4. Raw API: Zero-overhead untyped block (void*)
+    void* raw = slab_alloc(pool);
+    slab_dealloc(pool, raw);
+
+    return 0; // ScopedMultiSlabManager calls munmap() automatically via RAII
+}
