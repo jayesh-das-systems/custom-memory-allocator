@@ -114,6 +114,6 @@ Measured with `benchmark.cpp` (15 runs × 100,000 iterations, `-O2 -DNDEBUG`, x8
 
 ## Notes & License
 
-Built as a systems programming project exploring deterministic allocators and intrusive data structures. Early scaffolding and benchmark scripts drafted with LLM assistance.
+Built as a systems programming project exploring deterministic allocators and intrusive data structures. Early scaffolding and benchmark scripts were drafted with LLM assistance (specifically Anthropic's Claude and Google's Gemini).
 
 Licensed under the **GNU General Public License v3.0**.
