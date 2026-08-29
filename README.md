@@ -117,5 +117,3 @@ Measured with `benchmark.cpp` (15 runs × 100,000 iterations, `-O2 -DNDEBUG`, x8
 Built as a systems programming project exploring deterministic allocators and intrusive data structures. Early scaffolding and benchmark scripts drafted with LLM assistance.
 
 Licensed under the **GNU General Public License v3.0**.
-    return 0; // ScopedMultiSlabManager calls munmap() automatically via RAII
-}
