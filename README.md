@@ -1,70 +1,54 @@
 # custom-memory-allocator
 # POSIX Multi-Slab Allocator
 
-A header-only C++20 slab allocator backed by `mmap`. Designed for bounded-latency allocation in single-threaded hot paths. Includes an ncurses TUI for visualizing pool fragmentation and block state.
+A header-only C++20 slab allocator backed by `mmap`. Designed for low, bounded latency allocation in single-threaded hot paths. Includes an optional `ncurses` TUI to inspect pool fragmentation and block state.
 
-**Author:** Jayesh Kumar Das  
-**License:** GNU GPLv3  
-**Platform:** Linux (x86_64)
-
----
-
-## Technical Overview
-
-* **O(1) Hot Path:** Allocation and deallocation operate in constant time with zero metadata traversal. Free blocks are tracked via an intrusive singly-linked list embedded directly in unallocated memory.
-* **Double-Free Detection:** A fixed per-pool bitset provides O(1) occupancy queries and prevents double-free corruption.
-* **ASan Poisoning:** Integrates with `sanitizer/asan_interface.h` to poison freed memory blocks and unpoison active allocations under `-fsanitize=address`.
-* **Alignment Enforcement:** Enforces `sizeof(void*)` word alignment at pool initialization to prevent unaligned pointer storage inside the freelist.
-* **Thread Model:** Single-threaded and lock-free per pool. Thread ID checks in debug builds assert ownership.
+- **Author:** Jayesh Kumar Das
+- **License:** GPLv3
+- **Platform:** Linux (x86_64)
 
 ---
 
-## Repository Structure
+## How It Works
 
-| File | Purpose |
-| :--- | :--- |
-| `Arena.hpp` | The allocator itself. `mmap`-backed pools, intrusive freelist, bitset tracking, safe/raw dual API, ASan integration, debug-mode thread-ownership guards. Header-only. |
-| `Dashboard.hpp` | An ncurses TUI that renders live pool state (block grid, allocation status, efficiency, latency). Dev/debug tool only. |
-| `main.cpp` | Interactive CLI that walks through pool configuration, then drives the TUI. |
-| `benchmark.cpp` | Standalone microbenchmark isolating `slab_alloc` / `slab_dealloc` latency from terminal I/O. |
+Instead of relying on `malloc` or `new` (which can stall on lock contention or heap coalescing), this allocator maps fixed memory pools directly with `mmap()`.
+
+* **Allocation & Free ($O(1)$):** Free blocks are tracked using an intrusive singly-linked list (pointers stored inside unallocated blocks) alongside a bitset for instant double-free and state checks.
+* **Alignment:** Blocks are strictly aligned to `sizeof(void*)` during pool setup to avoid unaligned pointer dereferencing on the freelist.
+* **ASan Support:** Integrates with `sanitizer/asan_interface.h` to poison freed blocks and unpoison active blocks when compiled with `-fsanitize=address`.
+* **Threading:** Pools are lock-free and single-threaded. If multiple threads allocate from the same pool, synchronization must be handled externally. In debug builds, thread ID assertions catch cross-thread access.
 
 ---
 
-## Building
+## Files
 
-Requires a C++20 compiler and the ncurses development headers.
+* `Arena.hpp`: The core allocator. Header-only.
+* `Dashboard.hpp`: `ncurses` TUI for visualizing block layouts and allocation state (dev/debug only).
+* `main.cpp`: Driver for the interactive dashboard.
+* `benchmark.cpp`: Isolated latency microbenchmark.
+
+---
+
+## Build & Run
+
+Requires GCC 11+ / Clang 13+ (C++20) and `libncurses-dev`.
 
 ```bash
-# Install dependencies (Debian / Ubuntu)
+# Install dependencies (Ubuntu/Debian)
 sudo apt update && sudo apt install -y build-essential libncurses-dev
 
-# Build and run interactive dashboard
+# Run interactive dashboard
 g++ -std=c++20 -O2 main.cpp -o slab_allocator -lncurses
 ./slab_allocator
 
-# Build and run benchmark
+# Run standalone benchmark
 g++ -std=c++20 -O2 -DNDEBUG benchmark.cpp -o benchmark
 ./benchmark
+```
 
-### Build & Run Standalone Benchmark
+---
 
-The microbenchmark tests the core allocator in `Arena.hpp` in isolation without linking against ncurses:
-
-```bash
-g++ -std=c++20 -O2 -DNDEBUG benchmark.cpp -o benchmark
-./benchmark
-
-### Build with AddressSanitizer (Debug / Validation)
-
-Enables ASan memory poisoning hooks to catch use-after-free or buffer overflows:
-
-```bash
-g++ -std=c++20 -O1 -g -fsanitize=address benchmark.cpp -o benchmark_asan
-./benchmark_asan
-
-## Usage
-
-`Arena.hpp` is header-only — drop it into your include path and compile.
+## Quick Example
 
 ```cpp
 #include "Arena.hpp"
@@ -74,29 +58,55 @@ struct Particle {
 };
 
 int main() {
-    // 1. Initialize manager with 1 pool slot
+    // Allocate 1 pool slot
     ScopedMultiSlabManager mgr(1);
 
-    // 2. Configure a 4096-byte pool for Particle structs
-    manager_add_pool_strict(
-        mgr.get(), 
-        nullptr, 
-        /*total_bytes=*/4096, 
-        /*block_size=*/align_to_arch(sizeof(Particle))
-    );
-
+    // Create a 4KB pool for Particle structs
+    manager_add_pool_strict(mgr.get(), nullptr, 4096, align_to_arch(sizeof(Particle)));
     SlabPool* pool = &mgr.get()->pools[0];
 
-    // 3. Safe API: Typed handle with bounds & UAF validation
+    // Safe API (typed wrapper + bounds validation)
     SafeBlockHandle<Particle> p = slab_alloc_safe<Particle>(pool);
-    p->x = 1.0f;
-    p->y = 2.0f;
-    p->z = 3.0f;
+    p->x = 10.0f;
+    p->y = 20.0f;
+    p->z = 30.0f;
     slab_dealloc_safe(pool, p);
 
-    // 4. Raw API: Zero-overhead untyped block (void*)
+    // Raw API (untyped void* for zero-overhead hot paths)
     void* raw = slab_alloc(pool);
     slab_dealloc(pool, raw);
 
+    return 0; // mmap regions unmapped automatically on scope exit
+}
+```
+
+---
+
+## Latency Benchmark
+
+Measured with `benchmark.cpp` (15 runs × 100,000 iterations, `-O2 -DNDEBUG`, x86_64):
+
+| Operation | Median |
+| :--- | :--- |
+| `slab_alloc` | ~4.0 ns |
+| `slab_dealloc` | ~1.0 ns |
+| **Round-trip (alloc + dealloc)** | **~7.4 ns** |
+
+> **Note:** The latency counter in `Dashboard.hpp` measures ncurses rendering and clock-read overhead alongside the allocation, making it significantly noisier than the standalone benchmark.
+
+---
+
+## Limitations
+
+* **Linux specific:** Uses `MAP_FIXED_NOREPLACE` in custom address mappings.
+* **Safe API bypass:** Calling `.get()` on a `SafeBlockHandle` to extract the raw pointer and freeing it with `slab_dealloc()` bypasses the safety checks.
+
+---
+
+## Notes & License
+
+Built as a systems programming project exploring deterministic allocators and intrusive data structures. Early scaffolding and benchmark scripts drafted with LLM assistance.
+
+Licensed under the **GNU General Public License v3.0**.
     return 0; // ScopedMultiSlabManager calls munmap() automatically via RAII
 }
