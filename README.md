@@ -53,3 +53,11 @@ The microbenchmark tests the core allocator in `Arena.hpp` in isolation without 
 ```bash
 g++ -std=c++20 -O2 -DNDEBUG benchmark.cpp -o benchmark
 ./benchmark
+
+### Build with AddressSanitizer (Debug / Validation)
+
+Enables ASan memory poisoning hooks to catch use-after-free or buffer overflows:
+
+```bash
+g++ -std=c++20 -O1 -g -fsanitize=address benchmark.cpp -o benchmark_asan
+./benchmark_asan
