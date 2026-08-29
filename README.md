@@ -1,4 +1,13 @@
 # custom-memory-allocator
+---
+
+## Demo
+
+<p align="center">
+  <img src="assets/demo.gif" alt="POSIX Multi-Slab Allocator TUI Demo" width="80%">
+</p>
+
+---
 # POSIX Multi-Slab Allocator
 
 A header-only C++20 slab allocator backed by `mmap`. Designed for low, bounded latency allocation in single-threaded hot paths. Includes an optional `ncurses` TUI to inspect pool fragmentation and block state.
