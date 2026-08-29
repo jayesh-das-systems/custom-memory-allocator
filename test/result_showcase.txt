@@ -1,0 +1,28 @@
+=== Arena.hpp hot-path microbenchmark ===
+Iterations per run: 100000
+Runs per measurement: 15
+
+Build: release (NDEBUG defined) -- thread-owner asserts compiled out.
+ASan:  disabled.
+
+slab_alloc (isolated):
+  min:    11.3728 ns/op
+  median: 12.3763 ns/op
+  mean:   12.8964 ns/op
+  max:    15.3965 ns/op  (expect scheduler noise here, not real cost)
+
+slab_dealloc (isolated):
+  min:    1.07258 ns/op
+  median: 1.19341 ns/op
+  mean:   1.44623 ns/op
+  max:    2.62335 ns/op  (expect scheduler noise here, not real cost)
+
+alloc+dealloc round-trip (steady-state churn, per pair):
+  min:    21.1413 ns/op
+  median: 21.6406 ns/op
+  mean:   21.7295 ns/op
+  max:    23.5326 ns/op  (expect scheduler noise here, not real cost)
+
+Sanity check: isolated alloc median + isolated dealloc median = 13.5698 ns, vs round-trip median = 21.6406 ns (these should be roughly comparable).
+
+(sink=0, printed only to keep the optimizer honest)
