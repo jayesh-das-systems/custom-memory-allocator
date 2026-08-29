@@ -4,7 +4,7 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/demo.gif" alt="POSIX Multi-Slab Allocator TUI Demo" width="80%">
+  <img src="demo.gif" alt="POSIX Multi-Slab Allocator TUI Demo" width="80%">
 </p>
 
 ---
