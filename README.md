@@ -45,3 +45,11 @@ g++ -std=c++20 -O2 main.cpp -o slab_allocator -lncurses
 # Build and run benchmark
 g++ -std=c++20 -O2 -DNDEBUG benchmark.cpp -o benchmark
 ./benchmark
+
+### Build & Run Standalone Benchmark
+
+The microbenchmark tests the core allocator in `Arena.hpp` in isolation without linking against ncurses:
+
+```bash
+g++ -std=c++20 -O2 -DNDEBUG benchmark.cpp -o benchmark
+./benchmark
