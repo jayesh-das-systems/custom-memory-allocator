@@ -114,6 +114,6 @@ Measured with `benchmark.cpp` (15 runs × 100,000 iterations, `-O2 -DNDEBUG`, x8
 
 ## Notes & License
 
-Built as a systems programming project exploring deterministic allocators and intrusive data structures. Early scaffolding and benchmark scripts were drafted with LLM assistance (specifically Anthropic's Claude and Google's Gemini).
+Core slab layout, intrusive pointer freelists, and ASan integration designed manually in C++20. LLM tooling was utilized for harness boilerplate and benchmark script scaffolding. All memory ordering, safety assertions, and latency benchmarks were verified on Linux x86_64.
 
 Licensed under the **GNU General Public License v3.0**.
